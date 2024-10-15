@@ -1,0 +1,13 @@
+apiVersion: skaffold/v4
+kind: Config
+metadata:
+  name: jira-triggered-deployment # Choose a name for your deployment
+deploy:
+  cloudrun: {} # You can use other deploy types like 'kubectl' for Kubernetes deployments
+  # Or 'gke' for direct deployments to GKE
+build:
+  artifacts:
+    - image: us-central1-docker.pkg.dev/your-project-id/your-repo/your-app-image # Replace with your actual image name
+      # You can use different builders like 'docker' or 'bazel'
+      cloudNativeBuildpacks:
+        builder: gcr.io/buildpacks/builder:v1
