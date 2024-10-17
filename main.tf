@@ -8,23 +8,46 @@ terraform {
   }
 }
 
-# Replace with your Google Cloud project ID
-project_id = "your-project-id"
+variable "gcp_service_list" {
+  description = "List of GCP Services to enable (WIP)"
+  type = list(string)
+  default = [
+    "pubsub.googleapis.com",
+    "clouddeploy.googleapis.com"
+  ]
+}
 
-# Replace with your preferred region
-region = "us-central1"
+# Enable Services (Work in Progress)
+resource "google_project_service" "project" {
+  for_each = toset(var.gcp_service_list)
+  project = var.project_id
+  service = each.key
+
+  timeouts {
+    create = "30m"
+    update = "40m"
+  }
+
+  disable_on_destroy = false
+}
 
 # Create a Pub/Sub topic to receive JIRA notifications
 resource "google_pubsub_topic" "jira_notifications" {
   name = "jira-notifications"
-  project = project_id
+  project = var.project_id
+}
+
+# Create a Pub/Sub topic to receive JIRA notifications
+resource "google_pubsub_topic" "deploy_notifications" {
+  name = "clouddeploy-operations"
+  project = var.project_id
 }
 
 # Create a Cloud Deploy pipeline
 resource "google_clouddeploy_delivery_pipeline" "primary" {
   name        = "jira-triggered-pipeline"
-  project = project_id
-  location    = region
+  project = var.project_id
+  location    = var.region
   description = "Pipeline triggered by JIRA notifications"
 
   serial_pipeline {
@@ -35,63 +58,94 @@ resource "google_clouddeploy_delivery_pipeline" "primary" {
   }
 }
 
-# Create a Cloud Deploy target
-resource "google_clouddeploy_target" "primary" {
-  name     = "primary-target"
-  project = project_id
-  location = region
-  require_approval = false # Set to true if you want manual approval for deployments
-
-  # Configure your deployment target (Cloud Run)
-  cloud_run {
-    service = google_cloud_run_v2_service.main.name
-  }
-}
-
 # Create a Cloud Run service
 resource "google_cloud_run_v2_service" "main" {
   name     = "random-date-service"
-  project = project_id
-  location = region
+  project = var.project_id
+  location = var.region
+  ingress = "INGRESS_TRAFFIC_ALL"
 
   template {
     containers {
-      image = "us-central1-docker.pkg.dev/${project_id}/your-repo/random-date-app"
+      # We add a dummy image here to get the service created
+      image = "us-docker.pkg.dev/cloudrun/container/hello"
     }
   }
 }
 
-# Create a Cloud Build trigger
-resource "google_cloudbuild_trigger" "main" {
-  name        = "random-date-build-trigger"
-  project = project_id
-  location = region
+# Create a Cloud Deploy target
+resource "google_clouddeploy_target" "primary" {
+  name     = "primary-target"
+  project = var.project_id
+  location = "us-central1"
+  #location = var.region
+  require_approval = false # Set to true if you want manual approval for deployments
 
-  # Configure the trigger to build the Cloud Run service
-  github {
-    owner = "your-github-username"
-    name  = "your-github-repo"
-    push {
-      branch = "^main$" # Trigger on pushes to the main branch
-    }
+  # Configure your deployment target (Cloud Run)
+  run {
+    location = google_cloud_run_v2_service.main.name
+  }
+}
+
+#This isn't perfect because you have to connect the repo first
+#Not sure how to do this in terraform yet TODO: @Ghaun
+# Create a Cloud Build trigger
+resource "google_cloudbuild_trigger" "build-cloudrun-deploy" {
+  name        = "random-date-build-trigger"
+  location = "global"
+  #location = var.region
+  trigger_template {
+    branch_name = "main"
+    repo_name = "Crash-GHaun/cloud_deploy_jira"
+    #repo_name = var.github_repo
   }
 
-  filename = "cloudbuild.yaml" # Path to your Cloud Build configuration file
+  filename = "CloudBuild/buildCloudRun.yaml" # Path to your Cloud Build configuration file
+}
+
+resource "google_storage_bucket" "function_bucket" {
+  name = "${var.project_id}-gcf-source"
+  location = "US"
+  uniform_bucket_level_access = true 
+}
+
+data "archive_file" "receiveJira" {
+  type = "zip"
+  output_path = "/tmp/function-recieve-jira.zip"
+  source_dir = "CloudFunctions/recieveJiraNotification/"
+}
+
+data "archive_file" "sendJira" {
+  type = "zip"
+  output_path = "/tmp/function-send-jira.zip"
+  source_dir = "CloudFunctions/sendJiraNotification/"
+}
+
+resource "google_storage_bucket_object" "recieveJira" {
+  name = "function-recieve-jira.zip"
+  bucket = google_storage_bucket.function_bucket.name
+  source = data.archive_file.receiveJira.output_path
+}
+
+resource "google_storage_bucket_object" "sendJira" {
+  name = "function-send-jira.zip"
+  bucket = google_storage_bucket.function_bucket.name
+  source = data.archive_file.sendJira.output_path
 }
 
 # Create a Cloud Function to trigger Cloud Deploy
-resource "google_cloudfunctions2_function" "deploy_trigger" {
-  name    = "deploy-trigger"
-  project = project_id
-  location = region
+resource "google_cloudfunctions2_function" "recieve-jira" {
+  name    = "recieve-jira"
+  project = var.project_id
+  location = var.region
 
  build_config {
-    entry_point = "process_jira_notification"
-    runtime     = "nodejs16" # Or your preferred runtime
+    entry_point = "deployTrigger"
+    runtime     = "go122" # Or your preferred runtime
  source {
       storage_source {
-        bucket = "your-source-bucket" # Replace with your bucket name
-        object = "deploy-trigger-source.zip" # Replace with your source code object
+        bucket = google_storage_bucket.function_bucket.name # Replace with your bucket name
+        object = google_storage_bucket_object.recieveJira.name # Replace with your source code object
       }
     }
   }
@@ -101,29 +155,29 @@ resource "google_cloudfunctions2_function" "deploy_trigger" {
     available_memory               = "256M" # Adjust as needed
     ingress_settings               = "ALLOW_ALL"
     timeout_seconds                = 60 # Adjust as needed
+  }
 
-    event_trigger {
-      event_type = "google.cloud.pubsub.topic.v1.messagePublished"
-      retry_policy = "RETRY_POLICY_RETRY"
-      trigger_region = region
-      pubsub_topic = google_pubsub_topic.jira_notifications.id
-    }
+  event_trigger {
+    event_type = "google.cloud.pubsub.topic.v1.messagePublished"
+    retry_policy = "RETRY_POLICY_RETRY"
+    trigger_region = var.region
+    pubsub_topic = google_pubsub_topic.jira_notifications.id
   }
 }
 
 # Create a Cloud Function to send deployment updates to JIRA
-resource "google_cloudfunctions2_function" "jira_update" {
-  name    = "jira-update"
-  project = project_id
-  location = region
+resource "google_cloudfunctions2_function" "send-Jira" {
+  name    = "send-Jira"
+  project = var.project_id
+  location = var.region
 
   build_config {
-    entry_point = "update_jira"
-    runtime     = "nodejs16" # Or your preferred runtime
+    entry_point = "updateJira"
+    runtime     = "go122" # Or your preferred runtime
  source {
       storage_source {
-        bucket = "your-source-bucket" # Replace with your bucket name
-        object = "jira-update-source.zip" # Replace with your source code object
+        bucket = google_storage_bucket.function_bucket.name # Replace with your bucket name
+        object = google_storage_bucket_object.sendJira.name # Replace with your source code object
       }
     }
   }
@@ -133,12 +187,12 @@ resource "google_cloudfunctions2_function" "jira_update" {
     available_memory               = "256M" # Adjust as needed
     ingress_settings               = "ALLOW_ALL"
     timeout_seconds                = 60 # Adjust as needed
+  }
 
-    event_trigger {
-      event_type = "google.cloud.deploy.topic.v1.messagePublished"
-      retry_policy = "RETRY_POLICY_RETRY"
-      trigger_region = region
-      pubsub_topic = "projects/your-project-id/topics/clouddeploy-service-notifications" # This is the default Cloud Deploy notification topic
-    }
+  event_trigger {
+    event_type = "google.cloud.pubsub.topic.v1.messagePublished"
+    retry_policy = "RETRY_POLICY_RETRY"
+    trigger_region = var.region
+    pubsub_topic = google_pubsub_topic.deploy_notifications.id
   }
 }

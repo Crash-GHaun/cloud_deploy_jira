@@ -1,4 +1,4 @@
-package main
+package example
 
 import (
 	"context"
@@ -8,6 +8,9 @@ import (
 	"net/http"
 	"os"
 	"strings"
+
+	"github.com/GoogleCloudPlatform/functions-framework-go/functions"
+	"github.com/cloudevents/sdk-go/v2/event"
 )
 
 func init() {
@@ -30,7 +33,7 @@ type Rollout struct {
 	// Add other fields as needed
 }
 
-func updateJira(ctx context.Context, e functions.CloudEvent) error {
+func updateJira(ctx context.Context, e event.Event) error {
 	log.Printf("Jira update function invoked")
 
 	// Parse the Pub/Sub message data
