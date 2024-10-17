@@ -52,7 +52,7 @@ resource "google_clouddeploy_delivery_pipeline" "primary" {
 
   serial_pipeline {
     stages {
-      target_id = google_clouddeploy_target.primary.id
+      target_id = google_clouddeploy_target.primary.name
       profiles = ["example-profile"] # Replace with your Cloud Deploy profile name
     }
   }
@@ -83,8 +83,28 @@ resource "google_clouddeploy_target" "primary" {
 
   # Configure your deployment target (Cloud Run)
   run {
-    location = google_cloud_run_v2_service.main.name
+    location = "projects/{var.project_id}/locations/{var.location}"
   }
+  depends_on = [ google_cloud_run_v2_service.main ]
+}
+
+//Create CloudBuild SA
+resource "google_service_account" "cloudbuild_service_account" {
+  account_id   = "cloudbuild-sa"
+  display_name = "cloudbuild-sa"
+  description  = "Cloud build service account"
+}
+
+resource "google_project_iam_member" "act_as" {
+  project = var.project_id
+  role    = "roles/iam.serviceAccountUser"
+  member  = "serviceAccount:${google_service_account.cloudbuild_service_account.email}"
+}
+
+resource "google_project_iam_member" "logs_writer" {
+  project = var.project_id
+  role    = "roles/logging.logWriter"
+  member  = "serviceAccount:${google_service_account.cloudbuild_service_account.email}"
 }
 
 #This isn't perfect because you have to connect the repo first
@@ -93,11 +113,13 @@ resource "google_clouddeploy_target" "primary" {
 resource "google_cloudbuild_trigger" "build-cloudrun-deploy" {
   name        = "random-date-build-trigger"
   location = "global"
-  #location = var.region
-  trigger_template {
-    branch_name = "main"
-    repo_name = "Crash-GHaun/cloud_deploy_jira"
-    #repo_name = var.github_repo
+  service_account = google_service_account.cloudbuild_service_account.id
+  github {
+    owner = var.github_owner
+    name = var.github_repo
+    push {
+      branch = "main"
+    }
   }
 
   filename = "CloudBuild/buildCloudRun.yaml" # Path to your Cloud Build configuration file
