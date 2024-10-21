@@ -13,7 +13,8 @@ variable "gcp_service_list" {
   type = list(string)
   default = [
     "pubsub.googleapis.com",
-    "clouddeploy.googleapis.com"
+    "clouddeploy.googleapis.com",
+    "cloudbuild.googleapis.com"
   ]
 }
 
@@ -41,6 +42,13 @@ resource "google_pubsub_topic" "jira_notifications" {
 resource "google_pubsub_topic" "deploy_notifications" {
   name = "clouddeploy-operations"
   project = var.project_id
+}
+
+resource "google_artifact_registry_repository" "random-date-app" {
+  location      = "us-central1"
+  repository_id = "random-date-app"
+  description   = "Docker repo for random-date-app"
+  format        = "DOCKER"
 }
 
 # Create a Cloud Deploy pipeline
