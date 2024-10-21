@@ -6,4 +6,4 @@ steps:
 images:
 - 'us-central1-docker.pkg.dev/$PROJECT_ID/your-repo/random-date-app'
 options:
-- logging: "CLOUD_LOGGING_ONLY"
+  logging: CLOUD_LOGGING_ONLY
