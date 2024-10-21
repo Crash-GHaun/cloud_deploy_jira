@@ -1,0 +1,15 @@
+FROM golang:latest as builder
+WORKDIR /random-date
+COPY go.* ./
+RUN go mod download
+COPY .  ./
+
+RUN go build -mod=readonly -v -o random-date
+RUN chmod +x /random-date
+
+FROM gcr.io/distroless/base
+
+COPY --from=builder /random-date* /*
+
+
+CMD ["./random-date"]

@@ -1,9 +1,11 @@
 steps:
 - name: 'gcr.io/cloud-builders/docker'
-  args: ['build', '-t', 'us-central1-docker.pkg.dev/$PROJECT_ID/your-repo/random-date-app', '.']
+  dir: '/CloudRun'
+  args: ['build', '-t', 'us-central1-docker.pkg.dev/$PROJECT_ID/Crash-GHaun/random-date-app', '.']
 - name: 'gcr.io/cloud-builders/docker'
-  args: ['push', 'us-central1-docker.pkg.dev/$PROJECT_ID/your-repo/random-date-app']
+  dir: '/CloudRun'
+  args: ['push', 'us-central1-docker.pkg.dev/$PROJECT_ID/Crash-GHaun/random-date-app']
 images:
-- 'us-central1-docker.pkg.dev/$PROJECT_ID/your-repo/random-date-app'
+- 'us-central1-docker.pkg.dev/$PROJECT_ID/Crash-GHaun/random-date-app'
 options:
   logging: CLOUD_LOGGING_ONLY
