@@ -5,3 +5,5 @@ steps:
   args: ['push', 'us-central1-docker.pkg.dev/$PROJECT_ID/your-repo/random-date-app']
 images:
 - 'us-central1-docker.pkg.dev/$PROJECT_ID/your-repo/random-date-app'
+options:
+- logging: "CLOUD_LOGGING_ONLY"
