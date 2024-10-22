@@ -41,6 +41,7 @@ type Substitutions struct {
 	ShortSha               string `json:"SHORT_SHA"`
 	RevisionID             string `json:"REVISION_ID"`
 	RepoName               string `json:"REPO_NAME"`
+	DeployGCS              string `json:"_DEPLOY_GCS"`
 }
 
 type Artifacts struct {

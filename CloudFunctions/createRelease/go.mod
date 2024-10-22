@@ -4,10 +4,10 @@ go 1.23.2
 
 require (
 	cloud.google.com/go/deploy v1.23.0
+	cloud.google.com/go/pubsub v1.44.0
 	github.com/GoogleCloudPlatform/functions-framework-go v1.9.0
 	github.com/cloudevents/sdk-go/v2 v2.15.2
 	github.com/codingconcepts/env v0.0.0-20240618133406-5b0845441187
-	google.golang.org/api v0.201.0
 )
 
 require (
@@ -43,6 +43,7 @@ require (
 	golang.org/x/sys v0.26.0 // indirect
 	golang.org/x/text v0.19.0 // indirect
 	golang.org/x/time v0.7.0 // indirect
+	google.golang.org/api v0.201.0 // indirect
 	google.golang.org/genproto v0.0.0-20241015192408-796eee8c2d53 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20241015192408-796eee8c2d53 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20241015192408-796eee8c2d53 // indirect

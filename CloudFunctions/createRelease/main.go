@@ -7,21 +7,22 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"os"
-	"text/template"
 
 	deploy "cloud.google.com/go/deploy/apiv1"
 	"cloud.google.com/go/deploy/apiv1/deploypb"
+	"cloud.google.com/go/pubsub"
 	"github.com/GoogleCloudPlatform/functions-framework-go/functions"
 	"github.com/cloudevents/sdk-go/v2/event"
 	"github.com/codingconcepts/env"
 )
 
 type config struct {
-	ProjectId string `env:"PROJECTID" required:"true"`
-	Location  string `env:"LOCATION" required:"true"`
-	Pipeline  string `env:"PIPELINE" required:"true"`
-	TriggerID string `env:"TRIGGER" required:"true"`
+	// Truthfully project ID and location might be able to be gathered by the function instead of env
+	ProjectId   string `env:"PROJECTID" required:"true"`
+	Location    string `env:"LOCATION" required:"true"`
+	Pipeline    string `env:"PIPELINE" required:"true"`
+	TriggerID   string `env:"TRIGGER" required:"true"`
+	SendTopicID string `env:"SENDTOPICID" required:"true"`
 }
 
 var c config
@@ -30,13 +31,8 @@ func init() {
 	functions.CloudEvent("deployTrigger", deployTrigger)
 	//Load env variables using "github.com/codingconcepts/env"
 	if err := env.Set(&c); err != nil {
-		fmt.Errorf("error getting env: %s", err)
+		_ = fmt.Errorf("error getting env: %s", err)
 	}
-}
-
-type SkaffoldConfig struct {
-	Name  string
-	Image string
 }
 
 type PubSubMessage struct {
@@ -47,26 +43,19 @@ type MessagePublishedData struct {
 	Message PubSubMessage
 }
 
-// TODO (GHAUN): Get an example message from Jira?
-type JiraNotification struct {
-	// Add fields here to match the structure of your JIRA notification
-	IssueKey   string `json:"issueKey"`
-	ChangeType string `json:"changeType"`
-	// ... other relevant fields
+type CommandMessage struct {
+	Commmand      string                        `json:"command"`
+	CreateRelease deploypb.CreateReleaseRequest `json:"createReleaseRequest"`
 }
 
 func deployTrigger(ctx context.Context, e event.Event) error {
 	log.Printf("Deploy trigger function invoked")
 
 	// Parse the Pub/Sub message data
-
 	var msg MessagePublishedData
 	if err := e.DataAs(&msg); err != nil {
 		return fmt.Errorf("event.DataAs: %w", err)
 	}
-
-	// Only uncomment this if you don't think your message is being recieved/decoded properly.
-	//log.Printf("JSON: %v", string(msg.Message.Data))
 
 	// Unmarshal the CloudBuild/JIRA notification data
 	log.Printf("Converting Byte to Struct Object")
@@ -99,7 +88,6 @@ func deployTrigger(ctx context.Context, e event.Event) error {
 	pipeline, err := deployClient.GetDeliveryPipeline(ctx, &deploypb.GetDeliveryPipelineRequest{
 		Name: pipelineName,
 	})
-	log.Printf("Pipeline: %v", pipeline)
 	if err != nil {
 		return fmt.Errorf("error getting delivery pipeline: %v", err)
 	}
@@ -112,56 +100,34 @@ func deployTrigger(ctx context.Context, e event.Event) error {
 	// Use the random ID as the release ID
 	releaseID := fmt.Sprintf("release-%s", randomID)
 
-	// Create a new release
-	release, err := deployClient.CreateRelease(ctx, &deploypb.CreateReleaseRequest{
-		Parent:    pipeline.Name,
-		ReleaseId: releaseID, // Use the JIRA issue key as the release ID
-		Release: &deploypb.Release{
-			// Configure the release (e.g., Skaffold configuration)
-			BuildArtifacts: [
-				{
-					Tag: image
-				}
-			],
-			SkaffoldConfigPath: "skaffold.yaml", // Replace with your Skaffold config path
+	// Create a new release request
+	var command = CommandMessage{
+		Commmand: "CreateRelease",
+		CreateRelease: deploypb.CreateReleaseRequest{
+			Parent:    pipeline.Name,
+			ReleaseId: releaseID, // Use the JIRA issue key as the release ID
+			Release: &deploypb.Release{
+				// Configure the release (e.g., Skaffold configuration)
+				BuildArtifacts: []*deploypb.BuildArtifact{
+					{
+						// Tag == Container Image
+						Tag: image,
+						// Image == The template substitution variable in run.yaml
+						Image: "pizza",
+					},
+				},
+				SkaffoldConfigUri: fmt.Sprintf("%s/%s.tar.gz",
+					buildNotification.Substitutions.DeployGCS,
+					buildNotification.Substitutions.CommitSha,
+				), // This is needed as we upload to GCS from Cloud Build
+				SkaffoldConfigPath: "skaffold.yaml", // Replace with your Skaffold config path
+			},
 		},
-	})
-	if err != nil {
-		return fmt.Errorf("error creating release request: %v", err)
 	}
-	log.Printf("Created release: %s", release.Name())
-
-	_, err = release.Wait(ctx)
+	err = sendCommandPubSub(ctx, &command)
 	if err != nil {
-		return fmt.Errorf("error release request: %v", err)
+		return fmt.Errorf("failed to send pubsub command: %v", err)
 	}
-
-	// Approve the release if require_approval is set to true in the target
-	// Still need to update this step so it works
-	//if pipeline.GetSerialPipeline().GetStages()[0].GetTargetId() != "" {
-	//	_, err = deployClient.ApproveRollout(ctx, &deploypb.ApproveRolloutRequest{
-	//		Name: fmt.Sprintf("%s/rollouts/%s", pipeline.GetSerialPipeline().GetStages()[0].GetTargetId(), release.Name()),
-	//	})
-	//	if err != nil {
-	//		return fmt.Errorf("error approving rollout: %v", err)
-	//	}
-	//	log.Printf("Approved rollout for release: %s", release.Name())
-	//}
-
-	rollout, err := deployClient.CreateRollout(ctx, &deploypb.CreateRolloutRequest{
-		Parent:    release.Name(), // Reference the created release
-		RolloutId: fmt.Sprintf("rollout-%s", randomID),
-		Rollout: &deploypb.Rollout{
-			TargetId: "random-date-service", // Replace with your target ID
-		},
-	})
-
-	if err != nil {
-		log.Fatalf("Error creating rollout: %v", err)
-	} else {
-		log.Printf("Rollout created: %v", rollout)
-	}
-
 	log.Printf("Deployment triggered successfully")
 	return nil
 }
@@ -175,4 +141,33 @@ func generateRandomID(length int) (string, error) {
 	}
 	// Return the hexadecimal string representation of the byte slice
 	return hex.EncodeToString(bytes), nil
+}
+
+func sendCommandPubSub(ctx context.Context, m *CommandMessage) error {
+	client, err := pubsub.NewClient(ctx, c.ProjectId)
+	if err != nil {
+		return fmt.Errorf("pubsub.NewClient: %v", err)
+	}
+	defer client.Close()
+	t := client.Topic(c.SendTopicID)
+	// Marshal the CommandMessage into a JSON byte slice
+	jsonData, err := json.Marshal(m)
+	if err != nil {
+		return fmt.Errorf("json.Marshal: %v", err)
+	}
+	log.Printf("Sending message to PubSub")
+	result := t.Publish(ctx, &pubsub.Message{
+		Data: jsonData, // Use the JSON byte slice here
+	})
+	// Block until the result is returned and a server-generated
+	// ID is returned for the published message.
+	id, err := result.Get(ctx)
+	log.Printf("ID: %s, err: %v", id, err)
+	if err != nil {
+		fmt.Printf("Get: %v", err)
+		return nil
+
+	}
+	log.Printf("Published a message; msg ID: %v\n", id)
+	return nil
 }

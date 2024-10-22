@@ -13,10 +13,6 @@ import (
 	"github.com/cloudevents/sdk-go/v2/event"
 )
 
-func init() {
-	functions.CloudEvent("updateJira", updateJira)
-}
-
 type PubSubMessage struct {
 	Data []byte `json:"data"`
 }
@@ -33,7 +29,11 @@ type Rollout struct {
 	// Add other fields as needed
 }
 
-func updateJira(ctx context.Context, e event.Event) error {
+func init() {
+	functions.CloudEvent("cloudDeployPubSub", cloudDeployPubSub)
+}
+
+func cloudDeployPubSub(ctx context.Context, e event.Event) error {
 	log.Printf("Jira update function invoked")
 
 	// Parse the Pub/Sub message data
@@ -102,3 +102,29 @@ func updateJira(ctx context.Context, e event.Event) error {
 	log.Printf("JIRA issue updated successfully")
 	return nil
 }
+
+// Approve the release if require_approval is set to true in the target
+// Still need to update this step so it works
+//if pipeline.GetSerialPipeline().GetStages()[0].GetTargetId() != "" {
+//	_, err = deployClient.ApproveRollout(ctx, &deploypb.ApproveRolloutRequest{
+//		Name: fmt.Sprintf("%s/rollouts/%s", pipeline.GetSerialPipeline().GetStages()[0].GetTargetId(), release.Name()),
+//	})
+//	if err != nil {
+//		return fmt.Errorf("error approving rollout: %v", err)
+//	}
+//	log.Printf("Approved rollout for release: %s", release.Name())
+//}
+/*
+	rollout, err := deployClient.CreateRollout(ctx, &deploypb.CreateRolloutRequest{
+		Parent:    release.Name, // Reference the created release
+		RolloutId: fmt.Sprintf("rollout-%s", randomID),
+		Rollout: &deploypb.Rollout{
+			TargetId: "random-date-service", // Replace with your target ID
+		},
+	})
+
+	if err != nil {
+		log.Fatalf("Error creating rollout: %v", err)
+	} else {
+		log.Printf("Rollout created: %v", rollout)
+	}*/
