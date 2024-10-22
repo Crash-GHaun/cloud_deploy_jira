@@ -44,6 +44,12 @@ resource "google_pubsub_topic" "deploy_notifications" {
   project = var.project_id
 }
 
+# Create a Pub/Sub topic to receive JIRA notifications
+resource "google_pubsub_topic" "build_notifications" {
+  name = "cloud-builds"
+  project = var.project_id
+}
+
 resource "google_artifact_registry_repository" "random-date-app" {
   location      = "us-central1"
   repository_id = "random-date-app"
@@ -84,6 +90,8 @@ resource "google_clouddeploy_delivery_pipeline" "primary" {
 
 # Create a Cloud Deploy target
 resource "google_clouddeploy_target" "primary" {
+  # TODO(Ghaun): Figure out how to set Cloud Run Service name via Terraform
+  # Currently had to set the delivery pipeline and target to the service name to make it work
   name     = "random-date-service"
   project = var.project_id
   location = "us-central1"
@@ -128,6 +136,35 @@ resource "google_project_iam_member" "act_as" {
   project = var.project_id
   role    = each.key
   member  = "serviceAccount:${google_service_account.cloudbuild_service_account.email}"
+}
+
+# Data source to get the default compute engine service account
+data "google_compute_default_service_account" "default" {
+  project = var.project_id
+}
+
+# Assign Cloud Deploy Admin role to the default service account
+resource "google_project_iam_member" "cloud_deploy_admin_binding" {
+  project = var.project_id
+  role    = "roles/clouddeploy.admin"
+  member  = "serviceAccount:${data.google_compute_default_service_account.default.email}"
+}
+# Assign Cloud Deploy Releaser role to the default service account
+resource "google_project_iam_member" "cloud_deploy_releaser" {
+  project = var.project_id
+  role    = "roles/clouddeploy.releaser"
+  member  = "serviceAccount:${data.google_compute_default_service_account.default.email}"
+}
+
+# Grant "Service Account User" role to the default Compute Engine service account on the Cloud Build service account
+# Required for Cloud Functions to handle releases (Maybe? Probably isn't needed)
+resource "google_service_account_iam_binding" "allow_compute_sa_to_act_as" {
+  service_account_id = google_service_account.cloudbuild_service_account.name
+  role               = "roles/iam.serviceAccountUser"
+
+  members = [
+    "serviceAccount:${data.google_compute_default_service_account.default.email}",
+  ]
 }
 
 
@@ -184,11 +221,10 @@ resource "google_cloudfunctions2_function" "recieve-jira" {
   name    = "recieve-jira"
   project = var.project_id
   location = var.region
-
- build_config {
+  build_config {
     entry_point = "deployTrigger"
     runtime     = "go122" # Or your preferred runtime
- source {
+    source {
       storage_source {
         bucket = google_storage_bucket.function_bucket.name # Replace with your bucket name
         object = google_storage_bucket_object.recieveJira.name # Replace with your source code object
@@ -201,14 +237,24 @@ resource "google_cloudfunctions2_function" "recieve-jira" {
     available_memory               = "256M" # Adjust as needed
     ingress_settings               = "ALLOW_ALL"
     timeout_seconds                = 60 # Adjust as needed
+    environment_variables = {
+      PROJECTID = "${var.project_id}"
+      LOCATION = "${var.region}"
+      PIPELINE = "${google_clouddeploy_delivery_pipeline.primary.name}"
+      TRIGGER = "${google_cloudbuild_trigger.build-cloudrun-deploy.trigger_id}"
+    }
   }
 
   event_trigger {
     event_type = "google.cloud.pubsub.topic.v1.messagePublished"
     retry_policy = "RETRY_POLICY_RETRY"
     trigger_region = var.region
-    pubsub_topic = google_pubsub_topic.jira_notifications.id
+    # This is commented for demo purposes
+    # pubsub_topic = google_pubsub_topic.jira_notifications.id
+    pubsub_topic = google_pubsub_topic.build_notifications.id
   }
+
+  depends_on = [ google_cloudbuild_trigger.build-cloudrun-deploy ]
 }
 
 # Create a Cloud Function to send deployment updates to JIRA
@@ -220,7 +266,7 @@ resource "google_cloudfunctions2_function" "send-Jira" {
   build_config {
     entry_point = "updateJira"
     runtime     = "go122" # Or your preferred runtime
- source {
+    source {
       storage_source {
         bucket = google_storage_bucket.function_bucket.name # Replace with your bucket name
         object = google_storage_bucket_object.sendJira.name # Replace with your source code object
@@ -233,6 +279,10 @@ resource "google_cloudfunctions2_function" "send-Jira" {
     available_memory               = "256M" # Adjust as needed
     ingress_settings               = "ALLOW_ALL"
     timeout_seconds                = 60 # Adjust as needed
+    environment_variables = {
+      PROJECTID = "${var.project_id}"
+      LOCATION = "${var.region}"
+    }
   }
 
   event_trigger {

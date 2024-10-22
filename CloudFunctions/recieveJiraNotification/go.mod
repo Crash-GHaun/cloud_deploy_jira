@@ -6,6 +6,7 @@ require (
 	cloud.google.com/go/deploy v1.23.0
 	github.com/GoogleCloudPlatform/functions-framework-go v1.9.0
 	github.com/cloudevents/sdk-go/v2 v2.15.2
+	github.com/codingconcepts/env v0.0.0-20240618133406-5b0845441187
 	google.golang.org/api v0.201.0
 )
 
