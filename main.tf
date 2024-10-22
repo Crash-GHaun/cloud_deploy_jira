@@ -51,20 +51,6 @@ resource "google_artifact_registry_repository" "random-date-app" {
   format        = "DOCKER"
 }
 
-# Create a Cloud Deploy pipeline
-resource "google_clouddeploy_delivery_pipeline" "primary" {
-  name        = "jira-triggered-pipeline"
-  project = var.project_id
-  location    = var.region
-  description = "Pipeline triggered by JIRA notifications"
-
-  serial_pipeline {
-    stages {
-      target_id = google_clouddeploy_target.primary.name
-      profiles = ["example-profile"] # Replace with your Cloud Deploy profile name
-    }
-  }
-}
 
 # Create a Cloud Run service
 resource "google_cloud_run_v2_service" "main" {
@@ -81,19 +67,53 @@ resource "google_cloud_run_v2_service" "main" {
   }
 }
 
+# Create a Cloud Deploy pipeline
+resource "google_clouddeploy_delivery_pipeline" "primary" {
+  name        = "random-date-service"
+  project = var.project_id
+  location    = var.region
+  description = "Pipeline triggered by JIRA notifications"
+
+  serial_pipeline {
+    stages {
+      target_id = google_clouddeploy_target.primary.name
+      #profiles = ["example-profile"] 
+    }
+  }
+}
+
 # Create a Cloud Deploy target
 resource "google_clouddeploy_target" "primary" {
-  name     = "primary-target"
+  name     = "random-date-service"
   project = var.project_id
   location = "us-central1"
   #location = var.region
   require_approval = false # Set to true if you want manual approval for deployments
 
+  # Configure Service Account 
+  execution_configs {
+    usages = ["RENDER", "DEPLOY"]
+    service_account = "${google_service_account.cloudbuild_service_account.email}"
+  }
   # Configure your deployment target (Cloud Run)
   run {
-    location = "projects/{var.project_id}/locations/{var.location}"
+    location = "projects/${var.project_id}/locations/${var.region}"
   }
   depends_on = [ google_cloud_run_v2_service.main ]
+}
+
+variable "sa_roles_list" {
+  description = "List of roles for Cloud Build SA"
+  type = list(string)
+  default = [
+    "roles/iam.serviceAccountUser",
+    "roles/logging.logWriter",
+    "roles/artifactregistry.writer",
+    "roles/storage.objectUser",
+    "roles/clouddeploy.jobRunner",
+    "roles/clouddeploy.releaser",
+    "roles/run.developer"
+  ]
 }
 
 //Create CloudBuild SA
@@ -104,16 +124,12 @@ resource "google_service_account" "cloudbuild_service_account" {
 }
 
 resource "google_project_iam_member" "act_as" {
+  for_each = toset(var.sa_roles_list)
   project = var.project_id
-  role    = "roles/iam.serviceAccountUser"
+  role    = each.key
   member  = "serviceAccount:${google_service_account.cloudbuild_service_account.email}"
 }
 
-resource "google_project_iam_member" "logs_writer" {
-  project = var.project_id
-  role    = "roles/logging.logWriter"
-  member  = "serviceAccount:${google_service_account.cloudbuild_service_account.email}"
-}
 
 #This isn't perfect because you have to connect the repo first
 #Not sure how to do this in terraform yet TODO: @Ghaun
