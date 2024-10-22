@@ -104,27 +104,6 @@ func deployTrigger(ctx context.Context, e event.Event) error {
 		return fmt.Errorf("error getting delivery pipeline: %v", err)
 	}
 
-	// Update Template
-	templatePath := "./serverless_function_source_code/skaffoldTemplate.yaml"
-	config := SkaffoldConfig{
-		Name:  "random-date-service",
-		Image: image,
-	}
-	tmpl, err := template.ParseFiles(templatePath)
-	if err != nil {
-		log.Fatalf("Error parsing template: %v", err)
-	}
-	outputFile, err := os.Create("skaffold.yaml")
-	if err != nil {
-		log.Fatalf("Error creating output file: %v", err)
-	}
-	defer outputFile.Close()
-
-	err = tmpl.Execute(outputFile, config)
-	if err != nil {
-		log.Fatalf("Error executing tempalte: %v", err)
-	}
-
 	randomID, err := generateRandomID(6) // Generate a random ID of 6 bytes (12 hex characters)
 	if err != nil {
 		log.Fatalf("Error generating random ID: %v", err)
@@ -139,15 +118,23 @@ func deployTrigger(ctx context.Context, e event.Event) error {
 		ReleaseId: releaseID, // Use the JIRA issue key as the release ID
 		Release: &deploypb.Release{
 			// Configure the release (e.g., Skaffold configuration)
-			Name:               fmt.Sprintf(pipelineName + "/releases/areleaseforever"),
+			BuildArtifacts: [
+				{
+					Tag: image
+				}
+			],
 			SkaffoldConfigPath: "skaffold.yaml", // Replace with your Skaffold config path
 		},
 	})
 	if err != nil {
-		return fmt.Errorf("error creating release: %v", err)
+		return fmt.Errorf("error creating release request: %v", err)
 	}
-
 	log.Printf("Created release: %s", release.Name())
+
+	_, err = release.Wait(ctx)
+	if err != nil {
+		return fmt.Errorf("error release request: %v", err)
+	}
 
 	// Approve the release if require_approval is set to true in the target
 	// Still need to update this step so it works

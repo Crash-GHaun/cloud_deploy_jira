@@ -184,6 +184,15 @@ resource "google_cloudbuild_trigger" "build-cloudrun-deploy" {
   }
 
   filename = "CloudBuild/buildCloudRun.yaml" # Path to your Cloud Build configuration file
+  substitutions = {
+    "_DEPLOY_GCS" = google_storage_bucket.deploy_resources_bucket.url
+  }
+}
+
+resource "google_storage_bucket" "deploy_resources_bucket" {
+  name = "${var.project_id}-deploy-resources-bucket"
+  location = "US"
+  uniform_bucket_level_access = true 
 }
 
 resource "google_storage_bucket" "function_bucket" {
