@@ -38,9 +38,15 @@ resource "google_pubsub_topic" "deploy-commands" {
   project = var.project_id
 }
 
-# Create a Pub/Sub topic to receive Cloud Deploy Notifications
-resource "google_pubsub_topic" "deploy_notifications" {
+# Create a Pub/Sub topic to receive Cloud Deploy Operations Notifications
+resource "google_pubsub_topic" "deploy_operations" {
   name = "clouddeploy-operations"
+  project = var.project_id
+}
+
+
+resource "google_pubsub_topic" "deploy_approvals" {
+  name = "clouddeploy-approvals"
   project = var.project_id
 }
 

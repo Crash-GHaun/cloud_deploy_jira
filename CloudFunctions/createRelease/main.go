@@ -57,7 +57,7 @@ func deployTrigger(ctx context.Context, e event.Event) error {
 		return fmt.Errorf("event.DataAs: %w", err)
 	}
 
-	// Unmarshal the CloudBuild/JIRA notification data
+	// Unmarshal the CloudBuild data
 	log.Printf("Converting Byte to Struct Object")
 	var buildNotification BuildMessage
 	if err := json.Unmarshal(msg.Message.Data, &buildNotification); err != nil {

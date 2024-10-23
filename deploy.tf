@@ -46,7 +46,7 @@ resource "google_clouddeploy_target" "primary" {
   project = var.project_id
   location = "us-central1"
   #location = var.region
-  require_approval = false # Set to true if you want manual approval for deployments
+  require_approval = true # Set to true if you want manual approval for deployments
 
   # Configure Service Account 
   execution_configs {
