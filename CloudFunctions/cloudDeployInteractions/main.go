@@ -58,15 +58,18 @@ func cloudDeployInteractions(ctx context.Context, e event.Event) error {
 	switch c.Commmand {
 	case "CreateRelease":
 		if err := cdCreateRelease(ctx, *deployClient, &c.CreateRelease); err != nil {
-			return fmt.Errorf("create release failed: %v", err)
+			_ = fmt.Errorf("create release failed: %v", err)
+			return nil
 		}
 	case "CreateRollout":
 		if err := cdCreateRollout(ctx, *deployClient, &c.CreateRollout); err != nil {
-			return fmt.Errorf("create rollout failed: %v", err)
+			_ = fmt.Errorf("create rollout failed: %v", err)
+			return nil
 		}
 	case "ApproveRollout":
 		if err := cdApproveRollout(ctx, *deployClient, &c.ApproveRollout); err != nil {
-			return fmt.Errorf("approve rollout failed: %v", err)
+			_ = fmt.Errorf("approve rollout failed: %v", err)
+			return nil
 		}
 	}
 	return nil

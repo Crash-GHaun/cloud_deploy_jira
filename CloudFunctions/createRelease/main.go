@@ -143,6 +143,7 @@ func generateRandomID(length int) (string, error) {
 	return hex.EncodeToString(bytes), nil
 }
 
+// This should be in a shared code folder
 func sendCommandPubSub(ctx context.Context, m *CommandMessage) error {
 	client, err := pubsub.NewClient(ctx, c.ProjectId)
 	if err != nil {

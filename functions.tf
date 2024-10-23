@@ -153,6 +153,7 @@ resource "google_cloudfunctions2_function" "cloudDeployOperations" {
     environment_variables = {
       PROJECTID = "${var.project_id}"
       LOCATION = "${var.region}"
+      SENDTOPICID = google_pubsub_topic.deploy-commands.name
     }
   }
 
@@ -189,6 +190,7 @@ resource "google_cloudfunctions2_function" "cloudDeployApprovals" {
     environment_variables = {
       PROJECTID = "${var.project_id}"
       LOCATION = "${var.region}"
+      SENDTOPICID = google_pubsub_topic.deploy-commands.name
     }
   }
 

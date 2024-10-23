@@ -38,15 +38,35 @@ resource "google_pubsub_topic" "deploy-commands" {
   project = var.project_id
 }
 
+# Create a Pub/Sub subscription for deploy-commands topic
+resource "google_pubsub_subscription" "deploy_commands_subscription" {
+  name  = "deploy-commands-subscription"
+  topic = google_pubsub_topic.deploy-commands.id
+  project = var.project_id
+}
+
 # Create a Pub/Sub topic to receive Cloud Deploy Operations Notifications
 resource "google_pubsub_topic" "deploy_operations" {
   name = "clouddeploy-operations"
   project = var.project_id
 }
 
+# Create a Pub/Sub subscription for clouddeploy-operations topic
+resource "google_pubsub_subscription" "deploy_operations_subscription" {
+  name  = "clouddeploy-operations-subscription"
+  topic = google_pubsub_topic.deploy_operations.id
+  project = var.project_id
+}
 
 resource "google_pubsub_topic" "deploy_approvals" {
   name = "clouddeploy-approvals"
+  project = var.project_id
+}
+
+# Create a Pub/Sub subscription for clouddeploy-approvals topic
+resource "google_pubsub_subscription" "deploy_approvals_subscription" {
+  name  = "clouddeploy-approvals-subscription"
+  topic = google_pubsub_topic.deploy_approvals.id
   project = var.project_id
 }
 
