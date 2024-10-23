@@ -2,86 +2,7 @@
 <html>
 <head>
   <title>Pub/Sub Local Demo</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      grid-template-rows: 3fr 1fr;
-      height: 100vh;
-      margin: 0;
-      gap: 10px;
-    }
-
-    .message-grid {
-      grid-column: 1 / 3;
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      grid-template-rows: 1fr 1fr;
-      height: 75%;
-      gap: 10px;
-    }
-
-    .subscription-box {
-      border: 1px solid #ccc;
-      padding: 20px;
-      box-sizing: border-box;
-      overflow-y: auto; /* Ensures that content is scrollable */
-      height: 100%; /* Fixed height for each box */
-      max-height: 100%; /* Ensure the box doesn’t grow taller */
-    }
-
-    .subscription-title {
-      font-size: 1.2em;
-      font-weight: bold;
-      margin-bottom: 10px;
-    }
-
-    .message {
-      background-color: #f1f1f1;
-      margin: 10px 0;
-      padding: 10px;
-      border-radius: 5px;
-      white-space: pre-wrap; /* Ensures that JSON formatting displays correctly */
-    }
-
-    .control-panel {
-      grid-column: 1 / 3;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      padding: 10px;
-      background-color: #f9f9f9;
-      border-top: 1px solid #ccc;
-    }
-
-    input[type="text"] {
-      width: 60%;
-      padding: 10px;
-      margin-right: 10px;
-      font-size: 1em;
-    }
-
-    button {
-      padding: 10px 20px;
-      margin-right: 10px;
-      font-size: 1em;
-      cursor: pointer;
-    }
-
-    button.clear-btn {
-      background-color: #ff4d4d;
-      color: white;
-      border: none;
-    }
-
-    button.submit-btn {
-      background-color: #4CAF50;
-      color: white;
-      border: none;
-    }
-  </style>
-</head>
+  <link rel="stylesheet" type="text/css" href="styles.css"> 
 <body>
 
   <!-- Grid for the four quadrants -->
@@ -108,72 +29,11 @@
   </div>
 
   <!-- Control panel for input and buttons -->
-  <div class="control-panel">
-    <input type="text" id="message-input" placeholder="Enter a message...">
-    <button class="submit-btn">Submit</button>
-    <button class="clear-btn" onclick="clearMessages()">Clear</button>
+  <div class="input-area">
+    <textarea id="message-input" rows="4" placeholder="Enter your message here..."></textarea>
+    <button onclick="sendMessage()">Submit</button>
+    <button onclick="clearMessages()">Clear</button>
   </div>
-
-  <script>
-    let lastMessageData = {}; // Store last fetched messages to compare updates
-
-    // Function to update the messages on the webpage
-    function updateMessages() {
-      fetch('/messages')
-        .then(response => response.json())
-        .then(data => {
-          const subscriptionMap = {
-            'build_notifications_subscription': 'build_notifications_subscription',
-            'deploy-commands-subscription': 'deploy_commands_subscription',
-            'clouddeploy-operations-subscription': 'clouddeploy_operations_subscription',
-            'clouddeploy-approvals-subscription': 'clouddeploy_approvals_subscription'
-          };
-
-          // Loop through each subscription and update its content
-          for (const subscriptionName in subscriptionMap) {
-            const messages = data[subscriptionName] || [];
-            const messageContainer = document.getElementById(subscriptionMap[subscriptionName]);
-
-            // Only update if there are new messages
-            if (!lastMessageData[subscriptionName] || lastMessageData[subscriptionName].length !== messages.length) {
-              messageContainer.innerHTML = ''; // Clear previous messages
-
-              // Add new messages with pretty-printed JSON
-              messages.forEach(message => {
-                const messageDiv = document.createElement('div');
-                messageDiv.className = 'message';
-                messageDiv.textContent = JSON.stringify({
-                  id: message.id,
-                  data: message.data,
-                  attributes: message.attributes
-                }, null, 2); // Prettify JSON with indentation
-                messageContainer.appendChild(messageDiv);
-              });
-            }
-          }
-
-          // Save the latest message data to compare on the next refresh
-          lastMessageData = data;
-        });
-    }
-
-    // Function to clear all messages (both frontend and backend)
-    function clearMessages() {
-      fetch('/clear-messages', {
-        method: 'POST'
-      })
-      .then(response => {
-        if (response.ok) {
-          lastMessageData = {}; // Clear the frontend message data
-          updateMessages(); // Update the frontend to show empty message boxes
-        }
-      })
-      .catch(error => console.error('Error clearing messages:', error));
-    }
-
-    // Automatically update messages every 3 seconds
-    setInterval(updateMessages, 3000);
-  </script>
-
+  <script src="script.js"></script>
 </body>
 </html>
