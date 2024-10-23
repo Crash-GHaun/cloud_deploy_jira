@@ -76,6 +76,13 @@ resource "google_pubsub_topic" "build_notifications" {
   project = var.project_id
 }
 
+# Create a Pub/Sub subscription for clouddeploy-approvals topic
+resource "google_pubsub_subscription" "build_notifications_subscription" {
+  name  = "build_notifications_subscription"
+  topic = google_pubsub_topic.build_notifications.id
+  project = var.project_id
+}
+
 # Create a repo inside Artifact Registry to store container images
 resource "google_artifact_registry_repository" "random-date-app" {
   location      = "us-central1"
