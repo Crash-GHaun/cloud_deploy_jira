@@ -10,7 +10,9 @@ import (
 
 func main() {
 	http.HandleFunc("/", randomDateHandler)
+	//Probably better to pull from env but meh
 	port := "8080"
+
 	log.Printf("Server listening on port %s", port)
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%s", port), nil))
 }
