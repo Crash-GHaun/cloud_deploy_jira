@@ -1,7 +1,6 @@
 const { PubSub } = require('@google-cloud/pubsub');
 const express = require('express');
 const path = require('path');
-const bodyParser = require('body-parser');
 
 const app = express();
 const port = 8080;
@@ -61,7 +60,8 @@ async function main() {
   }, 5000);
 
   app.use(express.static(path.join(__dirname, 'public')));
-  app.use(bodyParser.json());
+  app.use(express.json());
+  app.use(express.urlencoded({ extended: true })); // For parsing application/x-www-form-urlencoded
 
   // API endpoint to send messages to the frontend
   app.get('/messages', (req, res) => {
@@ -83,6 +83,8 @@ async function main() {
 
   app.post('/send-message', async (req, res) => {
     const { message } = req.body;
+
+    console.log(`Attempting to send message with body: ${message}`)
   
     try {
       // Ensure the message is not empty
@@ -92,16 +94,14 @@ async function main() {
       const topic = pubsubClient.topic(topicName);
       
       // Create the message object with optional attributes
-      const messageObject = {
-        data: Buffer.from(message),
+      const data = Buffer.from(message);
         // Optionally, you can include attributes like this:
         // attributes: {
         //   key: 'value' // Add any attributes you need
         // }
-      };
   
       // Publish the message to the Pub/Sub topic
-      const messageId = await topic.publish(messageObject);
+      const messageId = await topic.publish(data);
       
       console.log(`Message sent with ID: ${messageId}`);
       

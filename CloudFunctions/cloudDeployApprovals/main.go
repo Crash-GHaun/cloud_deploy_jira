@@ -43,13 +43,14 @@ type Message struct {
 	Message PubsubMessage `json:"message"`
 }
 type ApprovalsData struct {
-	Action        string `json:"Action"`
-	Rollout       string `json:"Rollout"`
-	ReleaseId     string `json:"ReleaseId"`
-	RolloutId     string `json:"RolloutId"`
-	TargetId      string `json:"TargetId"`
-	Location      string `json:"Location"`
-	ProjectNumber string `json:"ProjectNumber"`
+	Action         string `json:"Action"`
+	Rollout        string `json:"Rollout"`
+	ReleaseId      string `json:"ReleaseId"`
+	RolloutId      string `json:"RolloutId"`
+	TargetId       string `json:"TargetId"`
+	Location       string `json:"Location"`
+	ProjectNumber  string `json:"ProjectNumber"`
+	ManualApproval bool   `json:"manualApproval"`
 }
 
 type CommandMessage struct {
@@ -80,7 +81,7 @@ func cloudDeployApprovals(ctx context.Context, e event.Event) error {
 	time.Sleep(30 * time.Second)
 	var a = msg.Message.Attributes
 	log.Printf("A is: %v", a)
-	if a.Action == "Required" && a.Rollout != "" {
+	if a.Action == "Required" && a.Rollout != "" && a.ManualApproval {
 		// Create the rollout
 		log.Printf("Creating Rollout and sending to pubsub")
 		var command = CommandMessage{

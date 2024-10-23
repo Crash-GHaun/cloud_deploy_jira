@@ -7,9 +7,9 @@ let lastMessageData = {}; // Store last fetched messages to compare updates
         .then(data => {
           const subscriptionMap = {
             'build_notifications_subscription': 'build_notifications_subscription',
-            'deploy-commands-subscription': 'deploy_commands_subscription',
-            'clouddeploy-operations-subscription': 'clouddeploy_operations_subscription',
-            'clouddeploy-approvals-subscription': 'clouddeploy_approvals_subscription'
+            'deploy-commands-subscription': 'deploy-commands-subscription',
+            'clouddeploy-operations-subscription': 'clouddeploy-operations-subscription',
+            'clouddeploy-approvals-subscription': 'clouddeploy-approvals-subscription'
           };
 
           // Loop through each subscription and update its content
@@ -54,22 +54,50 @@ let lastMessageData = {}; // Store last fetched messages to compare updates
       .catch(error => console.error('Error clearing messages:', error));
     }
 
-    function updateMessages() {
-    fetch('/messages')
-      .then(response => response.json())
-      .then(data => {
-        const messageBox = document.getElementById('messageBox');
-        messageBox.innerHTML = ''; // Clear previous messages
-
-        for (const subscriptionName in data) {
-          const messages = data[subscriptionName];
-          messageBox.innerHTML += `<h2>${subscriptionName}:</h2>`;
-          messages.forEach(message => {
-            messageBox.innerHTML += `<p>${JSON.stringify(message, null, 2)}</p>`; // Pretty print JSON
+    /*function updateMessages() {
+        fetch('/messages')
+          .then(response => response.json())
+          .then(data => {
+            // Clear previous messages from each box
+            document.getElementById('clouddeploy-approvals-subscription').innerHTML = '';
+            document.getElementById('deploy-commands-subscription').innerHTML = '';
+            document.getElementById('clouddeploy-operations-subscription').innerHTML = '';
+            document.getElementById('build_notifications_subscription').innerHTML = '';
+      
+            // Update each subscription box with the respective messages
+            if (data.clouddeploy_approvals_subscription) {
+              const approvalsMessages = data.clouddeploy_approvals_subscription;
+              const approvalsBox = document.getElementById('clouddeploy-approvals-subscription');
+              approvalsMessages.forEach(message => {
+                approvalsBox.innerHTML += `<p>${JSON.stringify(message, null, 2)}</p>`;
+              });
+            }
+      
+            if (data.deploy_commands_subscription) {
+              const deployMessages = data.deploy_commands_subscription;
+              const deployBox = document.getElementById('deploy-commands-subscription');
+              deployMessages.forEach(message => {
+                deployBox.innerHTML += `<p>${JSON.stringify(message, null, 2)}</p>`;
+              });
+            }
+      
+            if (data.clouddeploy_operations_subscription) {
+              const operationsMessages = data.clouddeploy_operations_subscription;
+              const operationsBox = document.getElementById('clouddeploy-operations-subscription');
+              operationsMessages.forEach(message => {
+                operationsBox.innerHTML += `<p>${JSON.stringify(message, null, 2)}</p>`;
+              });
+            }
+      
+            if (data.build_notifications_subscription) {
+              const buildMessages = data.build_notifications_subscription;
+              const buildBox = document.getElementById('build_notifications_subscription');
+              buildMessages.forEach(message => {
+                buildBox.innerHTML += `<p>${JSON.stringify(message, null, 2)}</p>`;
+              });
+            }
           });
-        }
-      });
-  }
+      }*/
 
   function sendMessage() {
     const messageInput = document.getElementById('message-input');
