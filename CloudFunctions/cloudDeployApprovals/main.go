@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"cloud.google.com/go/deploy/apiv1/deploypb"
@@ -50,7 +51,7 @@ type ApprovalsData struct {
 	TargetId       string `json:"TargetId"`
 	Location       string `json:"Location"`
 	ProjectNumber  string `json:"ProjectNumber"`
-	ManualApproval string   `json:"manualApproval"`
+	ManualApproval string `json:"manualApproval"`
 }
 
 type CommandMessage struct {
