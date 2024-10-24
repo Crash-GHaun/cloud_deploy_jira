@@ -78,8 +78,8 @@ func cloudDeployApprovals(ctx context.Context, e event.Event) error {
 		_ = fmt.Errorf("errored unmarshalling data: %v", err)
 		return nil
 	}
-	log.Printf("Waiting 30 seconds to approve for demo")
-	time.Sleep(30 * time.Second)
+	log.Printf("Waiting 3 seconds to approve for demo")
+	time.Sleep(3 * time.Second)
 	var a = msg.Message.Attributes
 	log.Printf("A is: %v", a)
 	if a.Action == "Required" && a.Rollout != "" && strings.ToLower(a.ManualApproval) == "true" {
