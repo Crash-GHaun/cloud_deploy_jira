@@ -82,26 +82,19 @@ async function main() {
   });
 
   app.post('/send-message', async (req, res) => {
-    const { message } = req.body;
-
-    console.log(`Attempting to send message with body: ${message}`)
-  
+    console.log(`Req Body: ${JSON.stringify(req.body, null, 2)}`);
     try {
-      // Ensure the message is not empty
-      if (!message) {
-        return res.status(400).send('Message cannot be empty.');
-      }
+      const {data, attributes } = req.body
+      console.log(`Data: ${data}, Attributes: ${JSON.stringify(attributes)}`)
+      
       const topic = pubsubClient.topic(topicName);
       
       // Create the message object with optional attributes
-      const data = Buffer.from(message);
-        // Optionally, you can include attributes like this:
-        // attributes: {
-        //   key: 'value' // Add any attributes you need
-        // }
+      const dataBuf = Buffer.from("{}"); // Convert data to Buffer
   
       // Publish the message to the Pub/Sub topic
-      const messageId = await topic.publish(data);
+      const messageId = await topic.publish(dataBuf,
+        attributes);
       
       console.log(`Message sent with ID: ${messageId}`);
       

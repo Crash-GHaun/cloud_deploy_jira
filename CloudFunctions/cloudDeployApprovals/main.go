@@ -50,7 +50,7 @@ type ApprovalsData struct {
 	TargetId       string `json:"TargetId"`
 	Location       string `json:"Location"`
 	ProjectNumber  string `json:"ProjectNumber"`
-	ManualApproval bool   `json:"manualApproval"`
+	ManualApproval string   `json:"manualApproval"`
 }
 
 type CommandMessage struct {
@@ -81,7 +81,7 @@ func cloudDeployApprovals(ctx context.Context, e event.Event) error {
 	time.Sleep(30 * time.Second)
 	var a = msg.Message.Attributes
 	log.Printf("A is: %v", a)
-	if a.Action == "Required" && a.Rollout != "" && a.ManualApproval {
+	if a.Action == "Required" && a.Rollout != "" && strings.ToLower(a.ManualApproval) == "true" {
 		// Create the rollout
 		log.Printf("Creating Rollout and sending to pubsub")
 		var command = CommandMessage{

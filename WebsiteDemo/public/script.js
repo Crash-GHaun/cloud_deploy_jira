@@ -101,7 +101,11 @@ let lastMessageData = {}; // Store last fetched messages to compare updates
 
   function sendMessage() {
     const messageInput = document.getElementById('message-input');
-    const message = messageInput.value;
+    let message = messageInput.value; 
+    // Clean up the message
+    message = message.trim(); // Remove leading and trailing whitespace
+    message = message.replace(/\n/g, ''); // Remove newline characters
+    
 
     // Send the message to the backend
     fetch('/send-message', {
@@ -109,7 +113,7 @@ let lastMessageData = {}; // Store last fetched messages to compare updates
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ message }),
+      body: message
     })
     .then(response => {
       if (response.ok) {
